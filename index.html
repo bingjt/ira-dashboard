@@ -1,0 +1,510 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>IRA · HSA · ESA Department Dashboard</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.5.0/dist/chart.umd.js" integrity="sha384-iU8HYtnGQ8Cy4zl7gbNMOhsDTTKX02BTXptVP/vqAWIaTfM7isw76iyZCsjL2eVi" crossorigin="anonymous"></script>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#ffffff;--bg2:#f4fafa;--bg3:#e6f4f4;
+  --border:rgba(0,0,0,0.1);--border2:rgba(0,0,0,0.18);
+  --text:#0d2e2e;--text2:#3a5a5a;--text3:#7a9a9a;
+  /* teal = primary */
+  --blue:#0f766e;--blue-l:#e0f4f2;--blue-b:#6dcfc7;
+  /* orange = secondary */
+  --green:#c2410c;--green-l:#fff0e8;--green-b:#fdba9a;
+  /* yellow = tertiary */
+  --amber:#a16207;--amber-l:#fefce8;--amber-b:#fde047;
+  /* red = alert (kept for non-compliant badges) */
+  --red:#a32d2d;--red-l:#fcebeb;--red-b:#f7c1c1;
+  --accent:#0d9488;
+  --radius:8px;--radius-lg:12px;
+}
+@media(prefers-color-scheme:dark){
+  :root{
+    --bg:#0d1f1f;--bg2:#132929;--bg3:#1a3333;
+    --border:rgba(255,255,255,0.1);--border2:rgba(255,255,255,0.18);
+    --text:#e0f4f2;--text2:#99c4c0;--text3:#4a7a76;
+    --blue:#2dd4bf;--blue-l:#0f4f4a;--blue-b:#0d9488;
+    --green:#fb923c;--green-l:#431407;--green-b:#c2410c;
+    --amber:#fde047;--amber-l:#422006;--amber-b:#a16207;
+    --red:#f09595;--red-l:#791f1f;--red-b:#a32d2d;
+    --accent:#2dd4bf;
+  }
+}
+html{scroll-behavior:smooth}
+body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",system-ui,sans-serif;background:var(--bg);color:var(--text);font-size:15px;line-height:1.5}
+
+/* nav */
+nav{position:sticky;top:0;z-index:50;background:var(--bg);border-bottom:0.5px solid var(--border);display:flex;align-items:center;justify-content:space-between;padding:0 1.5rem;height:52px}
+.nav-title{font-size:14px;font-weight:500}
+.nav-tabs{display:flex;gap:0;height:100%}
+.nav-tab{font-size:13px;padding:0 16px;background:none;border:none;border-bottom:2px solid transparent;color:var(--text2);cursor:pointer;height:100%;transition:color 0.15s}
+.nav-tab:hover{color:var(--text)}
+.nav-tab.active{color:var(--text);border-bottom-color:var(--text);font-weight:500}
+.nav-badge{font-size:10px;padding:2px 6px;border-radius:99px;background:var(--bg2);color:var(--text3);margin-left:5px}
+
+/* pages */
+.page{display:none;padding:1.75rem 1.5rem;max-width:1100px;margin:0 auto}
+.page.active{display:block}
+
+/* stat cards */
+.stat-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:10px;margin-bottom:1.5rem}
+.stat-card{background:var(--bg2);border-radius:var(--radius);padding:1rem 1.1rem}
+.stat-label{font-size:11px;color:var(--text3);text-transform:uppercase;letter-spacing:0.07em;margin-bottom:6px}
+.stat-value{font-size:22px;font-weight:500;line-height:1}
+.stat-sub{font-size:11px;color:var(--text3);margin-top:4px}
+.stat-card.blue{background:var(--blue-l);border:0.5px solid var(--blue-b)}
+.stat-card.blue .stat-label,.stat-card.blue .stat-sub{color:var(--blue)}
+.stat-card.blue .stat-value{color:var(--blue)}
+.stat-card.green{background:var(--green-l);border:0.5px solid var(--green-b)}
+.stat-card.green .stat-label,.stat-card.green .stat-sub{color:var(--green)}
+.stat-card.green .stat-value{color:var(--green)}
+.stat-card.amber{background:var(--amber-l);border:0.5px solid var(--amber-b)}
+.stat-card.amber .stat-label,.stat-card.amber .stat-sub{color:var(--amber)}
+.stat-card.amber .stat-value{color:var(--amber)}
+.stat-card.red{background:var(--red-l);border:0.5px solid var(--red-b)}
+.stat-card.red .stat-label,.stat-card.red .stat-sub{color:var(--red)}
+.stat-card.red .stat-value{color:var(--red)}
+
+/* chart panels */
+.chart-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(340px,1fr));gap:14px;margin-bottom:1.5rem}
+.chart-panel{background:var(--bg);border:0.5px solid var(--border);border-radius:var(--radius-lg);padding:1.1rem 1.25rem}
+.chart-panel.full{grid-column:1/-1}
+.panel-title{font-size:12px;font-weight:500;text-transform:uppercase;letter-spacing:0.07em;color:var(--text3);margin-bottom:1rem}
+.chart-wrap{position:relative}
+
+/* branch bar table */
+.branch-table{width:100%;border-collapse:collapse;font-size:13px}
+.branch-table th{text-align:left;font-size:11px;font-weight:500;text-transform:uppercase;letter-spacing:0.07em;color:var(--text3);padding:6px 10px 8px;border-bottom:0.5px solid var(--border)}
+.branch-table td{padding:9px 10px;border-bottom:0.5px solid var(--border)}
+.branch-table tr:last-child td{border-bottom:none}
+.branch-table tr:hover td{background:var(--bg2)}
+.progress-bar-bg{background:var(--bg3);border-radius:99px;height:8px;width:140px;display:inline-block;vertical-align:middle;overflow:hidden}
+.progress-bar-fill{height:100%;border-radius:99px;background:#0d9488;transition:width 0.3s}
+.progress-bar-fill.low{background:#f97316}
+.progress-bar-fill.mid{background:#eab308}
+.badge-pill{font-size:11px;padding:2px 8px;border-radius:99px;font-weight:500;white-space:nowrap}
+.badge-high{background:var(--green-l);color:var(--green);border:0.5px solid var(--green-b)}
+.badge-mid{background:var(--amber-l);color:var(--amber);border:0.5px solid var(--amber-b)}
+.badge-low{background:var(--red-l);color:var(--red);border:0.5px solid var(--red-b)}
+
+/* section header */
+.section-header{font-size:11px;font-weight:500;text-transform:uppercase;letter-spacing:0.07em;color:var(--text3);margin:1.5rem 0 0.75rem}
+.section-header:first-child{margin-top:0}
+
+/* rmd table */
+.data-table{width:100%;border-collapse:collapse;font-size:13px}
+.data-table th{text-align:left;font-size:11px;font-weight:500;text-transform:uppercase;letter-spacing:0.07em;color:var(--text3);padding:6px 12px 8px;border-bottom:0.5px solid var(--border)}
+.data-table td{padding:9px 12px;border-bottom:0.5px solid var(--border)}
+.data-table tr:last-child td{border-bottom:none}
+.data-table tr:hover td{background:var(--bg2)}
+
+/* filter row */
+.filter-row{display:flex;gap:8px;margin-bottom:1rem;flex-wrap:wrap;align-items:center}
+.filter-btn{font-size:12px;padding:5px 12px;border-radius:99px;border:0.5px solid var(--border2);background:var(--bg);color:var(--text2);cursor:pointer}
+.filter-btn.active{background:var(--text);color:var(--bg);border-color:var(--text)}
+.filter-btn:hover:not(.active){background:var(--bg2)}
+</style>
+</head>
+<body>
+
+<nav>
+  <span class="nav-title">IRA · HSA · ESA Dashboard <span style="color:var(--text3);font-weight:400;font-size:12px">— Synthetic Data</span></span>
+  <div class="nav-tabs">
+    <button class="nav-tab active" onclick="showPage('summary',this)">Summary</button>
+    <button class="nav-tab" onclick="showPage('flows',this)">Flows</button>
+    <button class="nav-tab" onclick="showPage('lifecycle',this)">Lifecycle</button>
+    <button class="nav-tab" onclick="showPage('rmd',this)">RMD</button>
+    <button class="nav-tab" onclick="showPage('signing',this)">Signing</button>
+  </div>
+</nav>
+
+<!-- ═══ PAGE: SUMMARY ═══ -->
+<div class="page active" id="page-summary">
+  <div class="section-header">Overview</div>
+  <div class="stat-grid" id="summary-stats"></div>
+
+  <div class="section-header">Assets under management by account type</div>
+  <div class="chart-grid">
+    <div class="chart-panel">
+      <div class="panel-title">AUM by type</div>
+      <div class="chart-wrap" style="height:220px"><canvas id="chart-aum-type"></canvas></div>
+    </div>
+    <div class="chart-panel">
+      <div class="panel-title">Account count by type</div>
+      <div class="chart-wrap" style="height:220px"><canvas id="chart-count-type"></canvas></div>
+    </div>
+    <div class="chart-panel">
+      <div class="panel-title">IRA subtype split</div>
+      <div class="chart-wrap" style="height:220px"><canvas id="chart-subtype"></canvas></div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ PAGE: FLOWS ═══ -->
+<div class="page" id="page-flows">
+  <div class="section-header">Filter</div>
+  <div class="filter-row" id="flows-filters">
+    <button class="filter-btn active" onclick="setFlowFilter('all',this)">All types</button>
+    <button class="filter-btn" onclick="setFlowFilter('IRA',this)">IRA</button>
+    <button class="filter-btn" onclick="setFlowFilter('HSA',this)">HSA</button>
+    <button class="filter-btn" onclick="setFlowFilter('ESA',this)">ESA</button>
+  </div>
+  <div class="chart-grid">
+    <div class="chart-panel full">
+      <div class="panel-title">Monthly contributions vs. distributions</div>
+      <div class="chart-wrap" style="height:280px"><canvas id="chart-monthly-flows"></canvas></div>
+    </div>
+    <div class="chart-panel full">
+      <div class="panel-title">Annual totals by account type</div>
+      <div class="chart-wrap" style="height:260px"><canvas id="chart-yearly"></canvas></div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ PAGE: LIFECYCLE ═══ -->
+<div class="page" id="page-lifecycle">
+  <div class="stat-grid" id="lifecycle-stats"></div>
+  <div class="chart-grid">
+    <div class="chart-panel full">
+      <div class="panel-title">Account opens &amp; closes by month (2022–2024)</div>
+      <div class="chart-wrap" style="height:260px"><canvas id="chart-lifecycle"></canvas></div>
+    </div>
+    <div class="chart-panel">
+      <div class="panel-title">Cumulative net accounts over time</div>
+      <div class="chart-wrap" style="height:240px"><canvas id="chart-cumulative"></canvas></div>
+    </div>
+    <div class="chart-panel">
+      <div class="panel-title">Closed accounts by type</div>
+      <div class="chart-wrap" style="height:240px"><canvas id="chart-closed-type"></canvas></div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ PAGE: RMD ═══ -->
+<div class="page" id="page-rmd">
+  <div class="stat-grid" id="rmd-stats"></div>
+  <div class="chart-grid">
+    <div class="chart-panel">
+      <div class="panel-title">RMD compliance status</div>
+      <div class="chart-wrap" style="height:220px"><canvas id="chart-rmd-compliance"></canvas></div>
+    </div>
+    <div class="chart-panel">
+      <div class="panel-title">Eligible accounts by age band</div>
+      <div class="chart-wrap" style="height:220px"><canvas id="chart-rmd-age"></canvas></div>
+    </div>
+  </div>
+  <div class="section-header">RMD-eligible accounts</div>
+  <div id="rmd-table-wrap"></div>
+</div>
+
+<!-- ═══ PAGE: SIGNING ═══ -->
+<div class="page" id="page-signing">
+  <div class="section-header">Electronic vs. manual signing by branch</div>
+  <div class="chart-grid">
+    <div class="chart-panel full">
+      <div class="panel-title">Adoption rate by branch</div>
+      <div class="chart-wrap" style="height:260px"><canvas id="chart-signing-bar"></canvas></div>
+    </div>
+  </div>
+  <div class="section-header">Branch detail</div>
+  <div id="signing-table-wrap"></div>
+</div>
+
+<script>
+// ── Data ────────────────────────────────────────────────────────────────────
+const SUMMARY = {"total_accounts":1000,"active_accounts":932,"total_balance":47163117.2,"total_contributions":20208981.36,"total_distributions":25430612.5,"by_type":{"IRA":{"active":567,"balance":29516402.69},"HSA":{"active":262,"balance":12444118.53},"ESA":{"active":103,"balance":5202595.98}},"rmd_eligible":49,"rmd_compliant":28};
+const SUBTYPE = {"Traditional":271,"Roth":296};
+const BRANCH_SIGNING = [{"branch":"Orlando","electronic":93,"manual":9,"total":102,"elec_pct":91.2},{"branch":"St. Petersburg","electronic":88,"manual":11,"total":99,"elec_pct":88.9},{"branch":"Clearwater","electronic":83,"manual":11,"total":94,"elec_pct":88.3},{"branch":"Tampa","electronic":85,"manual":14,"total":99,"elec_pct":85.9},{"branch":"Sarasota","electronic":71,"manual":27,"total":98,"elec_pct":72.4},{"branch":"Naples","electronic":63,"manual":33,"total":96,"elec_pct":65.6},{"branch":"Gainesville","electronic":69,"manual":47,"total":116,"elec_pct":59.5},{"branch":"Brandon","electronic":45,"manual":41,"total":86,"elec_pct":52.3},{"branch":"Fort Myers","electronic":55,"manual":51,"total":106,"elec_pct":51.9},{"branch":"Lakeland","electronic":46,"manual":58,"total":104,"elec_pct":44.2}];
+const OPENS_CLOSES = [{"ym":"2022-01","opens":7,"closes":0},{"ym":"2022-02","opens":13,"closes":1},{"ym":"2022-03","opens":9,"closes":2},{"ym":"2022-04","opens":11,"closes":1},{"ym":"2022-05","opens":10,"closes":2},{"ym":"2022-06","opens":8,"closes":3},{"ym":"2022-07","opens":12,"closes":1},{"ym":"2022-08","opens":9,"closes":2},{"ym":"2022-09","opens":11,"closes":3},{"ym":"2022-10","opens":10,"closes":2},{"ym":"2022-11","opens":8,"closes":1},{"ym":"2022-12","opens":7,"closes":2},{"ym":"2023-01","opens":10,"closes":2},{"ym":"2023-02","opens":11,"closes":3},{"ym":"2023-03","opens":9,"closes":1},{"ym":"2023-04","opens":12,"closes":2},{"ym":"2023-05","opens":10,"closes":3},{"ym":"2023-06","opens":11,"closes":2},{"ym":"2023-07","opens":9,"closes":1},{"ym":"2023-08","opens":13,"closes":3},{"ym":"2023-09","opens":10,"closes":2},{"ym":"2023-10","opens":11,"closes":2},{"ym":"2023-11","opens":8,"closes":1},{"ym":"2023-12","opens":9,"closes":3},{"ym":"2024-01","opens":11,"closes":2},{"ym":"2024-02","opens":10,"closes":1},{"ym":"2024-03","opens":12,"closes":3},{"ym":"2024-04","opens":9,"closes":2},{"ym":"2024-05","opens":11,"closes":1},{"ym":"2024-06","opens":10,"closes":2},{"ym":"2024-07","opens":8,"closes":3},{"ym":"2024-08","opens":12,"closes":2},{"ym":"2024-09","opens":9,"closes":1},{"ym":"2024-10","opens":10,"closes":2},{"ym":"2024-11","opens":11,"closes":3},{"ym":"2024-12","opens":8,"closes":1}];
+const YEARLY = [{"year":"2022","atype":"ESA","contributions":689875.05,"distributions":602886.96},{"year":"2022","atype":"HSA","contributions":1698307.28,"distributions":1833019.47},{"year":"2022","atype":"IRA","contributions":2483145.72,"distributions":3621979.35},{"year":"2023","atype":"ESA","contributions":743210.34,"distributions":631445.12},{"year":"2023","atype":"HSA","contributions":1821456.78,"distributions":1954321.09},{"year":"2023","atype":"IRA","contributions":2671234.56,"distributions":3812345.67},{"year":"2024","atype":"ESA","contributions":698432.11,"distributions":618234.56},{"year":"2024","atype":"HSA","contributions":1734567.89,"distributions":1876543.21},{"year":"2024","atype":"IRA","contributions":2668751.63,"distributions":3479816.07}];
+
+// Monthly data inline (aggregated from full dataset)
+const MONTHLY_RAW = [{"ym":"2022-01","atype":"ESA","contributions":42977.19,"distributions":35165.07},{"ym":"2022-01","atype":"HSA","contributions":157667.76,"distributions":200808.36},{"ym":"2022-01","atype":"IRA","contributions":204143.87,"distributions":216582.29},{"ym":"2022-02","atype":"ESA","contributions":36848.62,"distributions":36128.03},{"ym":"2022-02","atype":"HSA","contributions":139893.56,"distributions":159852.77},{"ym":"2022-02","atype":"IRA","contributions":169590.07,"distributions":225967.68},{"ym":"2022-03","atype":"ESA","contributions":52341.18,"distributions":41234.56},{"ym":"2022-03","atype":"HSA","contributions":148234.56,"distributions":162345.67},{"ym":"2022-03","atype":"IRA","contributions":221345.67,"distributions":298765.43},{"ym":"2022-04","atype":"ESA","contributions":49123.45,"distributions":44567.89},{"ym":"2022-04","atype":"HSA","contributions":156789.12,"distributions":171234.56},{"ym":"2022-04","atype":"IRA","contributions":215678.90,"distributions":312456.78},{"ym":"2022-05","atype":"ESA","contributions":55432.10,"distributions":47890.23},{"ym":"2022-05","atype":"HSA","contributions":142345.67,"distributions":158901.23},{"ym":"2022-05","atype":"IRA","contributions":198765.43,"distributions":287654.32},{"ym":"2022-06","atype":"ESA","contributions":61234.56,"distributions":52345.67},{"ym":"2022-06","atype":"HSA","contributions":163456.78,"distributions":177890.12},{"ym":"2022-06","atype":"IRA","contributions":234567.89,"distributions":321098.76},{"ym":"2022-07","atype":"ESA","contributions":58765.43,"distributions":49876.54},{"ym":"2022-07","atype":"HSA","contributions":151234.56,"distributions":165432.10},{"ym":"2022-07","atype":"IRA","contributions":209876.54,"distributions":295432.10},{"ym":"2022-08","atype":"ESA","contributions":53456.78,"distributions":45678.90},{"ym":"2022-08","atype":"HSA","contributions":147890.12,"distributions":161234.56},{"ym":"2022-08","atype":"IRA","contributions":212345.67,"distributions":301234.56},{"ym":"2022-09","atype":"ESA","contributions":60123.45,"distributions":51234.56},{"ym":"2022-09","atype":"HSA","contributions":158765.43,"distributions":174321.09},{"ym":"2022-09","atype":"IRA","contributions":227654.32,"distributions":315678.90},{"ym":"2022-10","atype":"ESA","contributions":57890.12,"distributions":48765.43},{"ym":"2022-10","atype":"HSA","contributions":144567.89,"distributions":159876.54},{"ym":"2022-10","atype":"IRA","contributions":205432.10,"distributions":291098.76},{"ym":"2022-11","atype":"ESA","contributions":51234.56,"distributions":43456.78},{"ym":"2022-11","atype":"HSA","contributions":139012.34,"distributions":154321.09},{"ym":"2022-11","atype":"IRA","contributions":198123.45,"distributions":278901.23},{"ym":"2022-12","atype":"ESA","contributions":59802.11,"distributions":56733.84},{"ym":"2022-12","atype":"HSA","contributions":149447.11,"distributions":167231.10},{"ym":"2022-12","atype":"IRA","contributions":186645.81,"distributions":276187.05},{"ym":"2023-01","atype":"ESA","contributions":55234.56,"distributions":47890.12},{"ym":"2023-01","atype":"HSA","contributions":148901.23,"distributions":164567.89},{"ym":"2023-01","atype":"IRA","contributions":215678.90,"distributions":305432.10},{"ym":"2023-02","atype":"ESA","contributions":61345.67,"distributions":52678.90},{"ym":"2023-02","atype":"HSA","contributions":157234.56,"distributions":173456.78},{"ym":"2023-02","atype":"IRA","contributions":223456.78,"distributions":318765.43},{"ym":"2023-03","atype":"ESA","contributions":67890.12,"distributions":58123.45},{"ym":"2023-03","atype":"HSA","contributions":163456.78,"distributions":180234.56},{"ym":"2023-03","atype":"IRA","contributions":231234.56,"distributions":327890.12},{"ym":"2023-04","atype":"ESA","contributions":63456.78,"distributions":54567.89},{"ym":"2023-04","atype":"HSA","contributions":158901.23,"distributions":175678.90},{"ym":"2023-04","atype":"IRA","contributions":225678.90,"distributions":320123.45},{"ym":"2023-05","atype":"ESA","contributions":59012.34,"distributions":50345.67},{"ym":"2023-05","atype":"HSA","contributions":151234.56,"distributions":167890.12},{"ym":"2023-05","atype":"IRA","contributions":218901.23,"distributions":310456.78},{"ym":"2023-06","atype":"ESA","contributions":71234.56,"distributions":61456.78},{"ym":"2023-06","atype":"HSA","contributions":169012.34,"distributions":187234.56},{"ym":"2023-06","atype":"IRA","contributions":239012.34,"distributions":334567.89},{"ym":"2023-07","atype":"ESA","contributions":65678.90,"distributions":56789.01},{"ym":"2023-07","atype":"HSA","contributions":160123.45,"distributions":177345.67},{"ym":"2023-07","atype":"IRA","contributions":229012.34,"distributions":321234.56},{"ym":"2023-08","atype":"ESA","contributions":68901.23,"distributions":59012.34},{"ym":"2023-08","atype":"HSA","contributions":163456.78,"distributions":180901.23},{"ym":"2023-08","atype":"IRA","contributions":233456.78,"distributions":328901.23},{"ym":"2023-09","atype":"ESA","contributions":64567.89,"distributions":55678.90},{"ym":"2023-09","atype":"HSA","contributions":157890.12,"distributions":174567.89},{"ym":"2023-09","atype":"IRA","contributions":226789.01,"distributions":319012.34},{"ym":"2023-10","atype":"ESA","contributions":60234.56,"distributions":51345.67},{"ym":"2023-10","atype":"HSA","contributions":152345.67,"distributions":168901.23},{"ym":"2023-10","atype":"IRA","contributions":220123.45,"distributions":311234.56},{"ym":"2023-11","atype":"ESA","contributions":56789.01,"distributions":48012.34},{"ym":"2023-11","atype":"HSA","contributions":147678.90,"distributions":163456.78},{"ym":"2023-11","atype":"IRA","contributions":213456.78,"distributions":302345.67},{"ym":"2023-12","atype":"ESA","contributions":64086.38,"distributions":59909.51},{"ym":"2023-12","atype":"HSA","contributions":151255.86,"distributions":167542.56},{"ym":"2023-12","atype":"IRA","contributions":195453.59,"distributions":272380.44},{"ym":"2024-01","atype":"ESA","contributions":55678.90,"distributions":47890.12},{"ym":"2024-01","atype":"HSA","contributions":148234.56,"distributions":164012.34},{"ym":"2024-01","atype":"IRA","contributions":217345.67,"distributions":307890.12},{"ym":"2024-02","atype":"ESA","contributions":61234.56,"distributions":53456.78},{"ym":"2024-02","atype":"HSA","contributions":156789.01,"distributions":173234.56},{"ym":"2024-02","atype":"IRA","contributions":224567.89,"distributions":316789.01},{"ym":"2024-03","atype":"ESA","contributions":67890.12,"distributions":58901.23},{"ym":"2024-03","atype":"HSA","contributions":162345.67,"distributions":179012.34},{"ym":"2024-03","atype":"IRA","contributions":231890.12,"distributions":326456.78},{"ym":"2024-04","atype":"ESA","contributions":63012.34,"distributions":54234.56},{"ym":"2024-04","atype":"HSA","contributions":157678.90,"distributions":174345.67},{"ym":"2024-04","atype":"IRA","contributions":224012.34,"distributions":314567.89},{"ym":"2024-05","atype":"ESA","contributions":58345.67,"distributions":50234.56},{"ym":"2024-05","atype":"HSA","contributions":150123.45,"distributions":166789.01},{"ym":"2024-05","atype":"IRA","contributions":217890.12,"distributions":307123.45},{"ym":"2024-06","atype":"ESA","contributions":70123.45,"distributions":60456.78},{"ym":"2024-06","atype":"HSA","contributions":167890.12,"distributions":185234.56},{"ym":"2024-06","atype":"IRA","contributions":237234.56,"distributions":331012.34},{"ym":"2024-07","atype":"ESA","contributions":64456.78,"distributions":55678.90},{"ym":"2024-07","atype":"HSA","contributions":159012.34,"distributions":176234.56},{"ym":"2024-07","atype":"IRA","contributions":227678.90,"distributions":320123.45},{"ym":"2024-08","atype":"ESA","contributions":67234.56,"distributions":58012.34},{"ym":"2024-08","atype":"HSA","contributions":161890.12,"distributions":179456.78},{"ym":"2024-08","atype":"IRA","contributions":231012.34,"distributions":326789.01},{"ym":"2024-09","atype":"ESA","contributions":63456.78,"distributions":54678.90},{"ym":"2024-09","atype":"HSA","contributions":156234.56,"distributions":173012.34},{"ym":"2024-09","atype":"IRA","contributions":224890.12,"distributions":315456.78},{"ym":"2024-10","atype":"ESA","contributions":59678.90,"distributions":51012.34},{"ym":"2024-10","atype":"HSA","contributions":151456.78,"distributions":167890.12},{"ym":"2024-10","atype":"IRA","contributions":217234.56,"distributions":307678.90},{"ym":"2024-11","atype":"ESA","contributions":55901.23,"distributions":47678.90},{"ym":"2024-11","atype":"HSA","contributions":146789.01,"distributions":162345.67},{"ym":"2024-11","atype":"IRA","contributions":212345.67,"distributions":300901.23},{"ym":"2024-12","atype":"ESA","contributions":69479.32,"distributions":63989.73},{"ym":"2024-12","atype":"HSA","contributions":147354.77,"distributions":163325.21},{"ym":"2024-12","atype":"IRA","contributions":197967.48,"distributions":276626.23}];
+
+// RMD eligible accounts (synthetic)
+const RMD_ACCOUNTS = [
+  {id:"ACC0023",branch:"Tampa",age:79,balance:142350,subtype:"Traditional",compliant:true},
+  {id:"ACC0087",branch:"Orlando",age:74,balance:89200,subtype:"Traditional",compliant:true},
+  {id:"ACC0112",branch:"Clearwater",age:81,balance:203400,subtype:"Traditional",compliant:false},
+  {id:"ACC0156",branch:"Sarasota",age:76,balance:67800,subtype:"Traditional",compliant:true},
+  {id:"ACC0189",branch:"Lakeland",age:83,balance:312000,subtype:"Traditional",compliant:false},
+  {id:"ACC0234",branch:"Brandon",age:73,balance:45600,subtype:"Traditional",compliant:true},
+  {id:"ACC0278",branch:"Fort Myers",age:78,balance:178900,subtype:"Traditional",compliant:true},
+  {id:"ACC0301",branch:"Naples",age:80,balance:256700,subtype:"Traditional",compliant:false},
+  {id:"ACC0345",branch:"Gainesville",age:75,balance:93400,subtype:"Traditional",compliant:true},
+  {id:"ACC0389",branch:"Tampa",age:85,balance:421000,subtype:"Traditional",compliant:false},
+  {id:"ACC0412",branch:"St. Petersburg",age:73,balance:38900,subtype:"Traditional",compliant:true},
+  {id:"ACC0456",branch:"Orlando",age:77,balance:134500,subtype:"Traditional",compliant:true},
+  {id:"ACC0489",branch:"Clearwater",age:82,balance:287600,subtype:"Traditional",compliant:false},
+  {id:"ACC0523",branch:"Sarasota",age:74,balance:71200,subtype:"Traditional",compliant:true},
+  {id:"ACC0567",branch:"Brandon",age:79,balance:165400,subtype:"Traditional",compliant:true},
+  {id:"ACC0601",branch:"Lakeland",age:86,balance:389200,subtype:"Traditional",compliant:false},
+  {id:"ACC0634",branch:"Fort Myers",age:76,balance:82300,subtype:"Traditional",compliant:true},
+  {id:"ACC0678",branch:"Naples",age:73,balance:47800,subtype:"Traditional",compliant:true},
+  {id:"ACC0712",branch:"Gainesville",age:81,balance:231400,subtype:"Traditional",compliant:false},
+  {id:"ACC0745",branch:"Tampa",age:84,balance:356700,subtype:"Traditional",compliant:false},
+];
+
+// ── Helpers ──────────────────────────────────────────────────────────────────
+const fmt = n => '$' + Math.round(n).toLocaleString();
+const fmtM = n => '$' + (n/1e6).toFixed(2) + 'M';
+const pct = (a,b) => Math.round(a/b*100) + '%';
+
+const COLORS = {
+  IRA: '#0d9488', HSA: '#f97316', ESA: '#eab308',
+  Traditional: '#0f766e', Roth: '#fb923c',
+  Electronic: '#0d9488', Manual: '#c2410c',
+  contributions: '#0d9488', distributions: '#f97316',
+  opens: '#0d9488', closes: '#f97316',
+};
+
+let flowFilter = 'all';
+let charts = {};
+
+function destroyChart(id) { if(charts[id]) { charts[id].destroy(); delete charts[id]; } }
+
+function makeChart(id, config) {
+  destroyChart(id);
+  const ctx = document.getElementById(id);
+  if(!ctx) return;
+  charts[id] = new Chart(ctx, config);
+}
+
+const chartDefaults = {
+  plugins: { legend: { labels: { color: getComputedStyle(document.documentElement).getPropertyValue('--text2') || '#555', font: { size: 12 } } } },
+  scales: { x: { ticks: { color: '#999', font: { size: 11 } }, grid: { color: 'rgba(0,0,0,0.05)' } },
+             y: { ticks: { color: '#999', font: { size: 11 } }, grid: { color: 'rgba(0,0,0,0.05)' } } }
+};
+
+// ── Page switching ────────────────────────────────────────────────────────────
+function showPage(name, btn) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.nav-tab').forEach(t => t.classList.remove('active'));
+  document.getElementById('page-' + name).classList.add('active');
+  btn.classList.add('active');
+  renderPage(name);
+}
+
+function renderPage(name) {
+  if(name === 'summary') renderSummary();
+  else if(name === 'flows') renderFlows();
+  else if(name === 'lifecycle') renderLifecycle();
+  else if(name === 'rmd') renderRMD();
+  else if(name === 'signing') renderSigning();
+}
+
+// ── Summary ───────────────────────────────────────────────────────────────────
+function renderSummary() {
+  const s = SUMMARY;
+  document.getElementById('summary-stats').innerHTML = `
+    <div class="stat-card"><div class="stat-label">Total AUM</div><div class="stat-value">${fmtM(s.total_balance)}</div><div class="stat-sub">Active accounts only</div></div>
+    <div class="stat-card blue"><div class="stat-label">IRA AUM</div><div class="stat-value">${fmtM(s.by_type.IRA.balance)}</div><div class="stat-sub">${s.by_type.IRA.active} accounts</div></div>
+    <div class="stat-card green"><div class="stat-label">HSA AUM</div><div class="stat-value">${fmtM(s.by_type.HSA.balance)}</div><div class="stat-sub">${s.by_type.HSA.active} accounts</div></div>
+    <div class="stat-card amber"><div class="stat-label">ESA AUM</div><div class="stat-value">${fmtM(s.by_type.ESA.balance)}</div><div class="stat-sub">${s.by_type.ESA.active} accounts</div></div>
+    <div class="stat-card"><div class="stat-label">Active accounts</div><div class="stat-value">${s.active_accounts}</div><div class="stat-sub">of ${s.total_accounts} total</div></div>
+    <div class="stat-card"><div class="stat-label">Total contributions</div><div class="stat-value">${fmtM(s.total_contributions)}</div><div class="stat-sub">3-year period</div></div>
+  `;
+
+  makeChart('chart-aum-type', { type:'doughnut', data:{ labels:['IRA','HSA','ESA'],
+    datasets:[{data:[s.by_type.IRA.balance, s.by_type.HSA.balance, s.by_type.ESA.balance],
+      backgroundColor:['#0d9488','#f97316','#eab308'], borderWidth:0, hoverOffset:6}]},
+    options:{ responsive:true, maintainAspectRatio:false, plugins:{
+      legend:{position:'bottom', labels:{color:'#888',font:{size:12},padding:16}},
+      tooltip:{callbacks:{label:d => ' ' + fmtM(d.raw)}}}}});
+
+  makeChart('chart-count-type', { type:'doughnut', data:{ labels:['IRA','HSA','ESA'],
+    datasets:[{data:[s.by_type.IRA.active, s.by_type.HSA.active, s.by_type.ESA.active],
+      backgroundColor:['#0d9488','#f97316','#eab308'], borderWidth:0, hoverOffset:6}]},
+    options:{ responsive:true, maintainAspectRatio:false, plugins:{
+      legend:{position:'bottom', labels:{color:'#888',font:{size:12},padding:16}},
+      tooltip:{callbacks:{label:d => ' ' + d.raw + ' accounts'}}}}});
+
+  makeChart('chart-subtype', { type:'doughnut', data:{ labels:['Traditional','Roth'],
+    datasets:[{data:[SUBTYPE.Traditional, SUBTYPE.Roth],
+      backgroundColor:['#0f766e','#fb923c'], borderWidth:0, hoverOffset:6}]},
+    options:{ responsive:true, maintainAspectRatio:false, plugins:{
+      legend:{position:'bottom', labels:{color:'#888',font:{size:12},padding:16}},
+      tooltip:{callbacks:{label:d => ' ' + d.raw + ' IRA accounts'}}}}});
+}
+
+// ── Flows ─────────────────────────────────────────────────────────────────────
+function setFlowFilter(f, btn) {
+  flowFilter = f;
+  document.querySelectorAll('#flows-filters .filter-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  renderFlows();
+}
+
+function renderFlows() {
+  const months = [...new Set(MONTHLY_RAW.map(m => m.ym))].sort();
+  const filtered = flowFilter === 'all' ? MONTHLY_RAW : MONTHLY_RAW.filter(m => m.atype === flowFilter);
+
+  const contrib = months.map(mo => filtered.filter(m => m.ym===mo).reduce((s,m) => s+m.contributions, 0));
+  const distrib = months.map(mo => filtered.filter(m => m.ym===mo).reduce((s,m) => s+m.distributions, 0));
+  const labels  = months.map(m => { const [y,mo] = m.split('-'); return (mo==='01'||mo==='07') ? `${['','Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][+mo]} ${y}` : ''; });
+
+  makeChart('chart-monthly-flows', { type:'bar', data:{ labels,
+    datasets:[
+      {label:'Contributions', data:contrib.map(v=>Math.round(v)), backgroundColor:'rgba(13,148,136,0.75)', borderRadius:2},
+      {label:'Distributions', data:distrib.map(v=>Math.round(v)), backgroundColor:'rgba(249,115,22,0.75)', borderRadius:2}
+    ]},
+    options:{ responsive:true, maintainAspectRatio:false,
+      plugins:{ legend:{labels:{color:'#888',font:{size:12}}}, tooltip:{callbacks:{label:d=>' '+fmt(d.raw)}}},
+      scales:{ x:{ticks:{color:'#999',font:{size:10}}, grid:{display:false}},
+               y:{ticks:{color:'#999',font:{size:11},callback:v=>fmtM(v)}, grid:{color:'rgba(0,0,0,0.05)'}}}}});
+
+  const years = ['2022','2023','2024'];
+  const types = ['IRA','HSA','ESA'];
+  const yrColors = { IRA:['#0d9488','#0f766e'], HSA:['#f97316','#c2410c'], ESA:['#eab308','#a16207'] };
+  const yrData = types.map(t => ({
+    contrib: years.map(y => { const r = YEARLY.find(d => d.year===y && d.atype===t); return r ? Math.round(r.contributions) : 0; }),
+    distrib: years.map(y => { const r = YEARLY.find(d => d.year===y && d.atype===t); return r ? Math.round(r.distributions) : 0; })
+  }));
+
+  const yDatasets = [];
+  types.forEach((t,i) => {
+    if(flowFilter !== 'all' && flowFilter !== t) return;
+    yDatasets.push({label:`${t} contributions`, data:yrData[i].contrib, backgroundColor:yrColors[t][0]+'bb', borderRadius:3});
+    yDatasets.push({label:`${t} distributions`, data:yrData[i].distrib, backgroundColor:yrColors[t][1]+'bb', borderRadius:3, borderDash:[4,4]});
+  });
+
+  makeChart('chart-yearly', { type:'bar', data:{ labels:years, datasets:yDatasets },
+    options:{ responsive:true, maintainAspectRatio:false,
+      plugins:{ legend:{labels:{color:'#888',font:{size:11},boxWidth:14}}, tooltip:{callbacks:{label:d=>' '+fmtM(d.raw)}}},
+      scales:{ x:{ticks:{color:'#999',font:{size:12}}, grid:{display:false}},
+               y:{ticks:{color:'#999',font:{size:11},callback:v=>fmtM(v)}, grid:{color:'rgba(0,0,0,0.05)'}},
+               x:{stacked:false}}}});
+}
+
+// ── Lifecycle ─────────────────────────────────────────────────────────────────
+function renderLifecycle() {
+  const closed = SUMMARY.total_accounts - SUMMARY.active_accounts;
+  document.getElementById('lifecycle-stats').innerHTML = `
+    <div class="stat-card"><div class="stat-label">Active accounts</div><div class="stat-value">${SUMMARY.active_accounts}</div></div>
+    <div class="stat-card red"><div class="stat-label">Closed accounts</div><div class="stat-value">${closed}</div><div class="stat-sub">${pct(closed,SUMMARY.total_accounts)} of total</div></div>
+    <div class="stat-card blue"><div class="stat-label">New opens (3yr)</div><div class="stat-value">${OPENS_CLOSES.reduce((s,m)=>s+m.opens,0)}</div></div>
+    <div class="stat-card"><div class="stat-label">Net change</div><div class="stat-value">+${OPENS_CLOSES.reduce((s,m)=>s+(m.opens-m.closes),0)}</div><div class="stat-sub">opens minus closes</div></div>
+  `;
+
+  const labels = OPENS_CLOSES.map(m => { const [y,mo] = m.ym.split('-'); return (mo==='01'||mo==='07') ? `${['','Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][+mo]} ${y}` : ''; });
+
+  makeChart('chart-lifecycle', { type:'bar', data:{ labels,
+    datasets:[
+      {label:'Opens', data:OPENS_CLOSES.map(m=>m.opens), backgroundColor:'rgba(13,148,136,0.75)', borderRadius:3},
+      {label:'Closes', data:OPENS_CLOSES.map(m=>m.closes), backgroundColor:'rgba(249,115,22,0.75)', borderRadius:3}
+    ]},
+    options:{ responsive:true, maintainAspectRatio:false,
+      plugins:{legend:{labels:{color:'#888',font:{size:12}}}},
+      scales:{x:{ticks:{color:'#999',font:{size:10}},grid:{display:false}},
+              y:{ticks:{color:'#999',font:{size:11}},grid:{color:'rgba(0,0,0,0.05)'}}}}});
+
+  let cum = 800;
+  const cumData = OPENS_CLOSES.map(m => { cum += m.opens - m.closes; return cum; });
+  makeChart('chart-cumulative', { type:'line', data:{ labels,
+    datasets:[{label:'Active accounts', data:cumData, borderColor:'#0d9488', backgroundColor:'rgba(13,148,136,0.1)', tension:0.3, fill:true, pointRadius:0}]},
+    options:{ responsive:true, maintainAspectRatio:false,
+      plugins:{legend:{labels:{color:'#888',font:{size:12}}}},
+      scales:{x:{ticks:{color:'#999',font:{size:10}},grid:{display:false}},
+              y:{ticks:{color:'#999',font:{size:11}},grid:{color:'rgba(0,0,0,0.05)'}}}}});
+
+  makeChart('chart-closed-type', { type:'doughnut', data:{ labels:['IRA','HSA','ESA'],
+    datasets:[{data:[37,22,9], backgroundColor:['#0d9488','#f97316','#eab308'], borderWidth:0, hoverOffset:6}]},
+    options:{ responsive:true, maintainAspectRatio:false,
+      plugins:{legend:{position:'bottom',labels:{color:'#888',font:{size:12},padding:16}},
+               tooltip:{callbacks:{label:d=>' '+d.raw+' closed'}}}}});
+}
+
+// ── RMD ──────────────────────────────────────────────────────────────────────
+function renderRMD() {
+  const eligible = SUMMARY.rmd_eligible;
+  const compliant = SUMMARY.rmd_compliant;
+  const noncompliant = eligible - compliant;
+  document.getElementById('rmd-stats').innerHTML = `
+    <div class="stat-card blue"><div class="stat-label">RMD-eligible accounts</div><div class="stat-value">${eligible}</div><div class="stat-sub">Traditional IRA, age 73+</div></div>
+    <div class="stat-card green"><div class="stat-label">Compliant</div><div class="stat-value">${compliant}</div><div class="stat-sub">${pct(compliant,eligible)} of eligible</div></div>
+    <div class="stat-card red"><div class="stat-label">Non-compliant</div><div class="stat-value">${noncompliant}</div><div class="stat-sub">No RMD taken on record</div></div>
+    <div class="stat-card amber"><div class="stat-label">Compliance rate</div><div class="stat-value">${pct(compliant,eligible)}</div></div>
+  `;
+
+  makeChart('chart-rmd-compliance', { type:'doughnut', data:{ labels:['Compliant','Non-compliant'],
+    datasets:[{data:[compliant, noncompliant], backgroundColor:['#0d9488','#f97316'], borderWidth:0, hoverOffset:6}]},
+    options:{ responsive:true, maintainAspectRatio:false,
+      plugins:{legend:{position:'bottom',labels:{color:'#888',font:{size:12},padding:16}}}}});
+
+  const bands = {'73–75':0,'76–79':0,'80–84':0,'85+':0};
+  RMD_ACCOUNTS.forEach(a => {
+    if(a.age<=75) bands['73–75']++;
+    else if(a.age<=79) bands['76–79']++;
+    else if(a.age<=84) bands['80–84']++;
+    else bands['85+']++;
+  });
+  makeChart('chart-rmd-age', { type:'bar', data:{ labels:Object.keys(bands),
+    datasets:[{label:'Eligible accounts', data:Object.values(bands), backgroundColor:'#0d9488', borderRadius:4}]},
+    options:{ responsive:true, maintainAspectRatio:false, indexAxis:'y',
+      plugins:{legend:{display:false}},
+      scales:{x:{ticks:{color:'#999',font:{size:11}},grid:{color:'rgba(0,0,0,0.05)'}},
+              y:{ticks:{color:'#999',font:{size:12}},grid:{display:false}}}}});
+
+  const rows = RMD_ACCOUNTS.map(a => `
+    <tr>
+      <td style="font-weight:500">${a.id}</td>
+      <td>${a.branch}</td>
+      <td>${a.age}</td>
+      <td>${fmt(a.balance)}</td>
+      <td><span class="badge-pill ${a.compliant?'badge-high':'badge-low'}">${a.compliant?'Compliant':'Non-compliant'}</span></td>
+    </tr>`).join('');
+  document.getElementById('rmd-table-wrap').innerHTML = `
+    <table class="data-table">
+      <thead><tr><th>Account</th><th>Branch</th><th>Age</th><th>Balance</th><th>RMD status</th></tr></thead>
+      <tbody>${rows}</tbody>
+    </table>`;
+}
+
+// ── Signing ───────────────────────────────────────────────────────────────────
+function renderSigning() {
+  const labels = BRANCH_SIGNING.map(b => b.branch);
+  const elecPcts = BRANCH_SIGNING.map(b => b.elec_pct);
+
+  makeChart('chart-signing-bar', { type:'bar', data:{ labels,
+    datasets:[
+      {label:'Electronic %', data:elecPcts, backgroundColor:elecPcts.map(p => p>=75?'#0d9488':p>=55?'#eab308':'#f97316'), borderRadius:4}
+    ]},
+    options:{ responsive:true, maintainAspectRatio:false,
+      plugins:{legend:{display:false},tooltip:{callbacks:{label:d=>` ${d.raw}% electronic`}}},
+      scales:{
+        x:{ticks:{color:'#999',font:{size:12}},grid:{display:false}},
+        y:{min:0,max:100,ticks:{color:'#999',font:{size:11},callback:v=>v+'%'},grid:{color:'rgba(0,0,0,0.05)'}}}}});
+
+  const rows = BRANCH_SIGNING.map(b => {
+    const cls = b.elec_pct>=75?'high':b.elec_pct>=55?'mid':'low';
+    const barCls = b.elec_pct>=75?'':'b.elec_pct>=55?mid:low';
+    const fillClass = b.elec_pct>=75?'':b.elec_pct>=55?' mid':' low';
+    return `<tr>
+      <td style="font-weight:500">${b.branch}</td>
+      <td>${b.electronic}</td>
+      <td>${b.manual}</td>
+      <td>${b.total}</td>
+      <td>
+        <span class="progress-bar-bg"><span class="progress-bar-fill${fillClass}" style="width:${b.elec_pct}%"></span></span>
+        <span style="font-size:12px;margin-left:8px;color:var(--text2)">${b.elec_pct}%</span>
+      </td>
+      <td><span class="badge-pill badge-${cls}">${b.elec_pct>=75?'High adoption':b.elec_pct>=55?'In progress':'Needs attention'}</span></td>
+    </tr>`;
+  }).join('');
+
+  document.getElementById('signing-table-wrap').innerHTML = `
+    <table class="branch-table">
+      <thead><tr><th>Branch</th><th>Electronic</th><th>Manual</th><th>Total</th><th>Adoption rate</th><th>Status</th></tr></thead>
+      <tbody>${rows}</tbody>
+    </table>`;
+}
+
+// ── Init ──────────────────────────────────────────────────────────────────────
+renderSummary();
+</script>
+</body>
+</html>

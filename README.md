@@ -1,5 +1,7 @@
 # IRA · HSA · ESA Department Dashboard
 
+**[Live demo →](https://bingjt.github.io/ira-dashboard/)**
+
 A self-contained, interactive analytics dashboard built on synthetic data — demonstrating end-to-end reporting for a financial institution's tax-advantaged account department.
 
 ## What it shows
